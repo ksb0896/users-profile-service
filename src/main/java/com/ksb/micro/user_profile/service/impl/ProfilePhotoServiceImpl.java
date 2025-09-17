@@ -33,13 +33,13 @@ public class ProfilePhotoServiceImpl implements ProfilePhotoService{
             ProfilePhoto photoToUpdate = existingPhoto.get();
             photoToUpdate.setPhotoData(photoData);
             photoToUpdate.setContentType(contentType);
-            return profilePhotoRepository.save(photoToUpdate);
+            return profilePhotoRepository.save(photoToUpdate); //update and save
         }
-        return null;
+        return null; //if not present, return 'null' response
     }
 
     @Override
-    @Transactional
+    @Transactional //custom-named repository method is properly executed in a transaction in database(explicitly)
     public void deleteProfilePhoto(Long userId) {
         profilePhotoRepository.deleteByUserId(userId);
     }
