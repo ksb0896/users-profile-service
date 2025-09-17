@@ -4,9 +4,11 @@ import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.repository.UserProfileRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+@Service
 public class UserProfileServiceImpl implements UserProfileService {
 
     @Autowired

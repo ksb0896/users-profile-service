@@ -4,9 +4,11 @@ import com.ksb.micro.user_profile.model.ProfilePhoto;
 import com.ksb.micro.user_profile.repository.ProfilePhotoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+@Service
 public class ProfilePhotoServiceImpl implements ProfilePhotoService{
 
     @Autowired
