@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/v1/banks/{bankId}/users")
 public class UserProfileController {
@@ -14,9 +16,15 @@ public class UserProfileController {
     @Autowired
     private UserProfileService userProfileService;
 
-    @GetMapping("/{userId}")
+    @GetMapping("/{userId}") //by user ID
     public ResponseEntity<UserProfile> getUserProfile(@PathVariable Long bankId, @PathVariable Long userId){
         return userProfileService.getUserProfile(bankId, userId).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<UserProfile>> getAllUserProfiles(@PathVariable Long bankId){
+        List<UserProfile> profiles = userProfileService.getAllUserProfiles(bankId);
+        return ResponseEntity.ok(profiles);//return the list of users for bankID specific
     }
 
     @PostMapping

@@ -6,6 +6,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -44,5 +45,11 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     public void deleteUserProfile(Long bankId, Long userId) {
         userProfileRepository.findByIdAndBankId(userId, bankId).ifPresent(userProfileRepository::delete);
+    }
+
+    //GET all USERS by bankID
+    @Override
+    public List<UserProfile> getAllUserProfiles(Long bankId) {
+        return userProfileRepository.findAllByBankId(bankId);
     }
 }
