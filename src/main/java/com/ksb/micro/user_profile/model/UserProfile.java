@@ -9,7 +9,6 @@ import lombok.Data;
 @Table(name = "user_profiles")
 public class UserProfile {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long bankId;

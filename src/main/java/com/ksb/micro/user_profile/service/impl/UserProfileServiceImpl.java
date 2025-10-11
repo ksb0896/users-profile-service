@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class UserProfileServiceImpl implements UserProfileService {
@@ -24,6 +25,13 @@ public class UserProfileServiceImpl implements UserProfileService {
     //POST-create new user
     @Override
     public UserProfile createUserProfile(UserProfile userProfile) {
+        //generating random ID
+        Long randomId;
+        do{
+            randomId = ThreadLocalRandom.current().nextLong(100,10000L);
+        } while(userProfileRepository.existsById(randomId));
+        userProfile.setId(randomId);
+
         return userProfileRepository.save(userProfile);
     }
 
