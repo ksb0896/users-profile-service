@@ -14,16 +14,19 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Autowired
     private UserProfileRepository userProfileRepository;
 
+    //GET BY ID-user profile
     @Override
     public Optional<UserProfile> getUserProfile(Long bankId, Long userId) {
         return userProfileRepository.findByIdAndBankId(userId, bankId);
     }
 
+    //POST-create new user
     @Override
     public UserProfile createUserProfile(UserProfile userProfile) {
         return userProfileRepository.save(userProfile);
     }
 
+    //PUT-update existing user, if it is there
     @Override
     public UserProfile updateUserProfile(Long bankId, Long userId, UserProfile userProfile) {
         Optional<UserProfile> existingProfile = userProfileRepository.findByIdAndBankId(userId, bankId);
