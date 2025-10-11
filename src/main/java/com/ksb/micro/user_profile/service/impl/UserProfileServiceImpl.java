@@ -28,7 +28,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         //generating random ID
         Long randomId;
         do{
-            randomId = ThreadLocalRandom.current().nextLong(100,10000L);
+            randomId = ThreadLocalRandom.current().nextLong(10000, Long.MAX_VALUE);
         } while(userProfileRepository.existsById(randomId));
         userProfile.setId(randomId);
 
