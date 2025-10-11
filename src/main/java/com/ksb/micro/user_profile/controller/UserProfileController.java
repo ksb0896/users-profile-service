@@ -24,6 +24,9 @@ public class UserProfileController {
     @GetMapping
     public ResponseEntity<List<UserProfile>> getAllUserProfiles(@PathVariable Long bankId){
         List<UserProfile> profiles = userProfileService.getAllUserProfiles(bankId);
+        if (profiles.isEmpty()){
+            return ResponseEntity.noContent().build(); //return 204, if list is empty
+        }
         return ResponseEntity.ok(profiles);//return the list of users for bankID specific
     }
 
