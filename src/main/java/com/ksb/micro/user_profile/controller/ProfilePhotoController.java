@@ -53,7 +53,11 @@ public class ProfilePhotoController {
 
     @DeleteMapping
     public ResponseEntity<Void> deleteProfilePhoto(@PathVariable Long userId){
+        Optional<ProfilePhoto> photo = profilePhotoService.getProfilePhotoByUserId(userId);
+        if(photo.isEmpty()){
+            return ResponseEntity.notFound().build(); //for 404
+        }
         profilePhotoService.deleteProfilePhoto(userId);
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.noContent().build(); //for 204 status code
     }
 }
