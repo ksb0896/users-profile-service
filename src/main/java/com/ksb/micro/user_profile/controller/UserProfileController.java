@@ -1,6 +1,5 @@
 package com.ksb.micro.user_profile.controller;
 
-
 import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.service.impl.UserProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
