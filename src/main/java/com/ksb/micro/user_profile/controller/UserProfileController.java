@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/v1/banks/{bankId}/users")
@@ -37,9 +38,9 @@ public class UserProfileController {
     }
 
     @PutMapping("/{userId}")
-    public ResponseEntity<UserProfile> updateUserProfile(@PathVariable Long bankId, @PathVariable Long userId, @RequestBody UserProfile userProfile){
-        UserProfile updateUser = userProfileService.updateUserProfile(bankId,userId,userProfile);
-        return updateUser !=null ? ResponseEntity.ok(updateUser) : ResponseEntity.notFound().build();
+    public ResponseEntity<? extends Object> updateUserProfile(@PathVariable Long bankId, @PathVariable Long userId, @RequestBody UserProfile userProfile){
+        Optional<UserProfile> updateUser = userProfileService.updateUserProfile(bankId,userId,userProfile);
+        return updateUser.isPresent() ? ResponseEntity.ok(updateUser) : ResponseEntity.notFound().build();
     }
 
     @DeleteMapping("/{userId}")
