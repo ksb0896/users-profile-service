@@ -18,7 +18,8 @@ public class UserProfileController {
 
     @GetMapping("/{userId}") //by user ID
     public ResponseEntity<UserProfile> getUserProfile(@PathVariable Long bankId, @PathVariable Long userId){
-        return userProfileService.getUserProfile(bankId, userId).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+        UserProfile profile = userProfileService.getUserProfile(bankId, userId);
+        return ResponseEntity.ok(profile);
     }
 
     @GetMapping
@@ -39,8 +40,8 @@ public class UserProfileController {
 
     @PutMapping("/{userId}")
     public ResponseEntity<? extends Object> updateUserProfile(@PathVariable Long bankId, @PathVariable Long userId, @RequestBody UserProfile userProfile){
-        Optional<UserProfile> updateUser = userProfileService.updateUserProfile(bankId,userId,userProfile);
-        return updateUser.isPresent() ? ResponseEntity.ok(updateUser) : ResponseEntity.notFound().build();
+        UserProfile updateUser = userProfileService.updateUserProfile(bankId,userId,userProfile);
+        return ResponseEntity.ok(updateUser);
     }
 
     @DeleteMapping("/{userId}")

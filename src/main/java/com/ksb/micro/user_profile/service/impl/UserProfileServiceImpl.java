@@ -1,5 +1,6 @@
 package com.ksb.micro.user_profile.service.impl;
 
+import com.ksb.micro.user_profile.exception.ResourceNotFoundException;
 import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.repository.UserProfileRepository;
 import jakarta.transaction.Transactional;
@@ -25,12 +26,11 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     //GET BY ID-user profile
     @Override
-    public Optional<UserProfile> getUserProfile(Long bankId, Long userId) {
-        Optional<UserProfile> userOpt = userProfileRepository.findByIdAndBankId(userId, bankId);
+    public UserProfile getUserProfile(Long bankId, Long userId) {
 
-        //If the user exists, call the photo service to enrich the data
-        if(userOpt.isPresent()){
-            UserProfile user = userOpt.get();
+        UserProfile user = userProfileRepository.findByIdAndBankId(userId, bankId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found for ID: " + userId + " in bank: " + bankId));
 
             try{
                 String photoStatus = checkProfilePhotoStatus(bankId, userId).block(Duration.ofSeconds(1));
@@ -39,10 +39,8 @@ public class UserProfileServiceImpl implements UserProfileService {
                 System.err.println("Error calling photo service: " + e.getMessage());
                 user.setHasProfilePhoto("No");
             }
-            return Optional.of(user);
+            return user;
         }
-        return Optional.empty();
-    }
 
     /**
      * Calls the profile-photo-service (Port 8082) using WebClient.
@@ -80,16 +78,16 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     //PUT-update existing user, if it is there
     @Override
-    public Optional<UserProfile> updateUserProfile(Long bankId, Long userId, UserProfile userProfile) {
-        Optional<UserProfile> existingProfile = userProfileRepository.findByIdAndBankId(userId, bankId);
-        if (existingProfile.isPresent()) {
-            UserProfile profileToUpdate = existingProfile.get();
-            profileToUpdate.setFirstName(userProfile.getFirstName());
-            profileToUpdate.setLastName(userProfile.getLastName());
-            profileToUpdate.setEmail(userProfile.getEmail());
-            return Optional.of(userProfileRepository.save(profileToUpdate));
-        }
-        return Optional.empty();
+    public UserProfile updateUserProfile(Long bankId, Long userId, UserProfile userProfile) {
+        UserProfile userToUpdate = userProfileRepository.findByIdAndBankId(userId, bankId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User not found for ID: " + userId + " in bank: " + bankId));
+        // Updated fields
+        userToUpdate.setFirstName(userProfile.getFirstName());
+        userToUpdate.setLastName(userProfile.getLastName());
+        userToUpdate.setEmail(userProfile.getEmail());
+
+        return userProfileRepository.save(userToUpdate);
     }
 
     @Override
