@@ -6,6 +6,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -100,6 +101,23 @@ public class UserProfileServiceImpl implements UserProfileService {
     //GET all USERS by bankID
     @Override
     public List<UserProfile> getAllUserProfiles(Long bankId) {
-        return userProfileRepository.findAllByBankId(bankId);
+
+        List<UserProfile> users = userProfileRepository.findAllByBankId(bankId); //fetch all users from local db
+
+        if(users.isEmpty()){
+            return users;
+        }
+
+        List<UserProfile> enrichedUsers = Flux.fromIterable(users).flatMap(user -> checkProfilePhotoStatus(user.getBankId(), user.getId())
+                .onErrorResume(e -> {
+                    System.err.println("Error calling photo service for user " + user.getId() + ": " + e.getMessage());
+                    return Mono.just("No");
+                }).map(status -> {
+                    user.setHasProfilePhoto(status);
+                    return user;
+                })
+        ).collectList().block(Duration.ofSeconds(10));
+
+        return enrichedUsers;
     }
 }
