@@ -3,6 +3,7 @@ package com.ksb.micro.user_profile.controller;
 import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.service.impl.UserProfileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,8 +35,8 @@ public class UserProfileController {
     @PostMapping
     public ResponseEntity<UserProfile> createUserProfile(@PathVariable Long bankId, @RequestBody UserProfile userProfile){
         userProfile.setBankId(bankId);
-        UserProfile createUser = userProfileService.createUserProfile(userProfile);
-        return ResponseEntity.ok(createUser);
+        UserProfile createdProfile = userProfileService.createUserProfile(userProfile);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProfile);
     }
 
     @PutMapping("/{userId}")

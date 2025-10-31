@@ -1,15 +1,20 @@
 package com.ksb.micro.user_profile.service.impl;
 
+import com.ksb.micro.user_profile.exception.PhotoServiceException;
 import com.ksb.micro.user_profile.exception.ResourceNotFoundException;
 import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.repository.UserProfileRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -35,8 +40,11 @@ public class UserProfileServiceImpl implements UserProfileService {
             try{
                 String photoStatus = checkProfilePhotoStatus(bankId, userId).block(Duration.ofSeconds(1));
                 user.setHasProfilePhoto(photoStatus);
-            } catch (Exception e) {
-                System.err.println("Error calling photo service: " + e.getMessage());
+            } catch (PhotoServiceException e) {
+                System.err.println("CRITICAL: Photo Service failed for user " + userId + ". Error: " + e.getMessage());
+                user.setHasProfilePhoto("No");
+            } catch (Exception e){
+                System.err.println("Error during photo service check: " + e.getMessage());
                 user.setHasProfilePhoto("No");
             }
             return user;
@@ -52,15 +60,23 @@ public class UserProfileServiceImpl implements UserProfileService {
         return photoServiceWebClient.get()
                 .uri(photoUri)
                 .retrieve()
+                .onStatus(HttpStatusCode::is5xxServerError, response ->
+                        Mono.error(new PhotoServiceException(
+                                "Photo Service returned 5xx error: " + response.statusCode(), null))
+                )
                 .toBodilessEntity()
                 .map(response -> {
                     if(response.getStatusCode().is2xxSuccessful()){
                         return "Yes";
                     }
                     return "No";
-                }).onErrorResume(e ->{
-                    return Mono.just("No");
-                });
+                })
+                .onErrorMap(e -> e instanceof IOException, e ->
+                        new PhotoServiceException("Network/Connection failure to Photo Service.", e)
+                )
+                .onErrorMap(e -> e instanceof WebClientResponseException && !((WebClientResponseException)e).getStatusCode().is4xxClientError(), e ->
+                        new PhotoServiceException("Unhandled Photo Service response error.", e)
+                );
     }
 
     //POST-create new user
@@ -110,12 +126,17 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .onErrorResume(e -> {
                     System.err.println("Error calling photo service for user " + user.getId() + ": " + e.getMessage());
                     return Mono.just("No");
-                }).map(status -> {
-                    user.setHasProfilePhoto(status);
-                    return user;
+                }).onErrorResume(e ->{
+                    System.err.println("Unexpected error checking photo status for user " + user.getId() + ": " + e.getMessage());
+                    return Mono.just("No");
+                }).onErrorResume(PhotoServiceException.class, e -> {
+            System.err.println("CRITICAL: Photo Service failed for user " + user.getId() + ". Error: " + e.getMessage());
+            return Mono.just("No");
+        }).map(status ->{
+            user.setHasProfilePhoto(status);
+            return user;
                 })
         ).collectList().block(Duration.ofSeconds(10));
-
         return enrichedUsers;
     }
 }
