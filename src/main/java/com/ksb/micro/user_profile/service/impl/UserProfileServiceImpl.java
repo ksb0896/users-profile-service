@@ -6,10 +6,11 @@ import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.repository.UserProfileRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,7 +18,6 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -31,7 +31,18 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     //GET BY ID-user profile
     @Override
+    @Cacheable(value = "userProfiles", key = "#bankId + ':' + #userId")
     public UserProfile getUserProfile(Long bankId, Long userId) {
+        /*
+        Implemented Cache-Aside pattern - When a request for a user comes in,
+        the user-profile-service first checks Redis using the user ID as the key.
+        - Cache Hit
+        - Cache Miss
+        - Write Back: The service then stores the fresh data in Redis (with an expiration time, like 30 minutes) and returns the data to the client
+        */
+
+        //Cache miss
+        System.out.println("--> Executing DB/Photo Service logic for user: " + userId + " (Cache Miss)");
 
         UserProfile user = userProfileRepository.findByIdAndBankId(userId, bankId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -94,7 +105,11 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     //PUT-update existing user, if it is there
     @Override
+    @CacheEvict(value = "userProfiles", key = "#bankId + ':' + #userId")
     public UserProfile updateUserProfile(Long bankId, Long userId, UserProfile userProfile) {
+
+        System.out.println("--> Database update, Evicting user: " + userId + " from cache.");
+
         UserProfile userToUpdate = userProfileRepository.findByIdAndBankId(userId, bankId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found for ID: " + userId + " in bank: " + bankId));
@@ -102,13 +117,17 @@ public class UserProfileServiceImpl implements UserProfileService {
         userToUpdate.setFirstName(userProfile.getFirstName());
         userToUpdate.setLastName(userProfile.getLastName());
         userToUpdate.setEmail(userProfile.getEmail());
+        userToUpdate.setHasProfilePhoto(userProfile.getHasProfilePhoto());
 
         return userProfileRepository.save(userToUpdate);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = "userProfiles", key = "#bankId + ':' + #userId")
     public void deleteUserProfile(Long bankId, Long userId) {
+        System.out.println("--> Database delete, Evicting user: " + userId + " from cache.");
+
         userProfileRepository.findByIdAndBankId(userId, bankId).ifPresent(userProfileRepository::delete);
     }
 
@@ -123,18 +142,15 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
 
         List<UserProfile> enrichedUsers = Flux.fromIterable(users).flatMap(user -> checkProfilePhotoStatus(user.getBankId(), user.getId())
-                .onErrorResume(e -> {
-                    System.err.println("Error calling photo service for user " + user.getId() + ": " + e.getMessage());
+                .onErrorResume(PhotoServiceException.class, e -> {
+                    System.err.println("CRITICAL: Photo Service failed for user " + user.getId() + ". Error: " + e.getMessage());
                     return Mono.just("No");
                 }).onErrorResume(e ->{
                     System.err.println("Unexpected error checking photo status for user " + user.getId() + ": " + e.getMessage());
                     return Mono.just("No");
-                }).onErrorResume(PhotoServiceException.class, e -> {
-            System.err.println("CRITICAL: Photo Service failed for user " + user.getId() + ". Error: " + e.getMessage());
-            return Mono.just("No");
-        }).map(status ->{
-            user.setHasProfilePhoto(status);
-            return user;
+                }).map(status ->{
+                    user.setHasProfilePhoto(status);
+                    return user;
                 })
         ).collectList().block(Duration.ofSeconds(10));
         return enrichedUsers;
