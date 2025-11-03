@@ -4,6 +4,9 @@ import com.ksb.micro.user_profile.exception.PhotoServiceException;
 import com.ksb.micro.user_profile.exception.ResourceNotFoundException;
 import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.repository.UserProfileRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -23,52 +26,50 @@ import java.util.concurrent.ThreadLocalRandom;
 @Service
 public class UserProfileServiceImpl implements UserProfileService {
 
-    @Autowired
-    private UserProfileRepository userProfileRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final WebClient photoServiceWebClient;
+    private final CircuitBreaker circuitBreaker;
 
     @Autowired
-    private WebClient photoServiceWebClient;
+    public UserProfileServiceImpl(UserProfileRepository userProfileRepository, WebClient photoServiceWebClient, CircuitBreakerRegistry circuitBreakerRegistry) {
+        this.userProfileRepository = userProfileRepository;
+        this.photoServiceWebClient = photoServiceWebClient;
+        this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("photoServiceCircuitBreaker");
+    }
 
     //GET BY ID-user profile
     @Override
     @Cacheable(value = "userProfiles", key = "#bankId + ':' + #userId")
     public UserProfile getUserProfile(Long bankId, Long userId) {
-        /*
-        Implemented Cache-Aside pattern - When a request for a user comes in,
-        the user-profile-service first checks Redis using the user ID as the key.
-        - Cache Hit
-        - Cache Miss
-        - Write Back: The service then stores the fresh data in Redis (with an expiration time, like 30 minutes) and returns the data to the client
-        */
 
-        //Cache miss
-        System.out.println("--> Executing DB/Photo Service logic for user: " + userId + " (Cache Miss)");
+        System.out.println("Executing DB/Photo Service logic for user: " + userId + " (Cache Miss)");
 
         UserProfile user = userProfileRepository.findByIdAndBankId(userId, bankId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found for ID: " + userId + " in bank: " + bankId));
 
-            try{
-                String photoStatus = checkProfilePhotoStatus(bankId, userId).block(Duration.ofSeconds(1));
-                user.setHasProfilePhoto(photoStatus);
-            } catch (PhotoServiceException e) {
-                System.err.println("CRITICAL: Photo Service failed for user " + userId + ". Error: " + e.getMessage());
-                user.setHasProfilePhoto("No");
-            } catch (Exception e){
+        try{
+            String photoStatus = checkProfilePhotoStatus(bankId, userId).block(Duration.ofMillis(1200));
+            user.setHasProfilePhoto(photoStatus);
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("CircuitBreaker is OPEN")) {
+                System.err.println("Circuit Breaker OPEN. Skipping photo service for user " + userId);
+            } else {
                 System.err.println("Error during photo service check: " + e.getMessage());
-                user.setHasProfilePhoto("No");
             }
-            return user;
+            user.setHasProfilePhoto("No");
         }
+        return user;
+    }
 
     /**
-     * Calls the profile-photo-service (Port 8082) using WebClient.
+     * Calls the profile-photo-service (Port 8082) using WebClient, wrapped in a Circuit Breaker.
      * Returns a Mono<String> that resolves to "Yes" or "No".
      */
     private Mono<String> checkProfilePhotoStatus(Long bankId, Long userId){
         String photoUri = String.format("/v1/banks/%d/users/%d/photo", bankId, userId);
 
-        return photoServiceWebClient.get()
+        Mono<String> webClientCall = photoServiceWebClient.get()
                 .uri(photoUri)
                 .retrieve()
                 .onStatus(HttpStatusCode::is5xxServerError, response ->
@@ -83,11 +84,21 @@ public class UserProfileServiceImpl implements UserProfileService {
                     return "No";
                 })
                 .onErrorMap(e -> e instanceof IOException, e ->
-                        new PhotoServiceException("Network/Connection failure to Photo Service.", e)
+                        new PhotoServiceException("Connection failure to Photo Service.", e)
                 )
                 .onErrorMap(e -> e instanceof WebClientResponseException && !((WebClientResponseException)e).getStatusCode().is4xxClientError(), e ->
                         new PhotoServiceException("Unhandled Photo Service response error.", e)
                 );
+
+        // --- Resilience4j Implementation ---
+        return webClientCall
+                .transform(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorResume(e -> {
+                    if (e instanceof io.github.resilience4j.circuitbreaker.CallNotPermittedException) {
+                        System.err.println("CIRCUIT OPEN. Immediate Fallback for user: " + userId);
+                    }
+                    return Mono.just("No");
+                });
     }
 
     //POST-create new user
@@ -142,10 +153,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
 
         List<UserProfile> enrichedUsers = Flux.fromIterable(users).flatMap(user -> checkProfilePhotoStatus(user.getBankId(), user.getId())
-                .onErrorResume(PhotoServiceException.class, e -> {
-                    System.err.println("CRITICAL: Photo Service failed for user " + user.getId() + ". Error: " + e.getMessage());
-                    return Mono.just("No");
-                }).onErrorResume(e ->{
+                .onErrorResume(e -> {
                     System.err.println("Unexpected error checking photo status for user " + user.getId() + ": " + e.getMessage());
                     return Mono.just("No");
                 }).map(status ->{
