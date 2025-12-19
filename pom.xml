@@ -63,10 +63,6 @@
 			<artifactId>resilience4j-spring-boot3</artifactId>
 			<version>2.2.0</version>
 		</dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.cloud</groupId>-->
-<!--            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>-->
-<!--        </dependency>-->
 		<!--caching-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -80,11 +76,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
-		<!--Swagger-->
+		<!--swagger/openapi-->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.5.0</version>
+			<version>2.8.3</version>
 		</dependency>
 	</dependencies>
 

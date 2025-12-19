@@ -4,6 +4,7 @@ import com.ksb.micro.user_profile.model.UserProfile;
 import com.ksb.micro.user_profile.service.impl.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,11 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/v1/banks/{bankId}/users")
-@Tag(name = "Users", description = "User Management")
+@Tag(name = "Users", description = "User Management endpoints")
 public class UserProfileController {
 
     @Autowired
@@ -23,8 +23,10 @@ public class UserProfileController {
 
     @GetMapping("/{userId}") //by user ID
     @Operation(summary = "Get user by ID")
-    @ApiResponse(responseCode = "200", description = "User found")
-    @ApiResponse(responseCode = "404", description = "User not found")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User found"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     public ResponseEntity<UserProfile> getUserProfile(@PathVariable Long bankId, @PathVariable Long userId){
         UserProfile profile = userProfileService.getUserProfile(bankId, userId);
         return ResponseEntity.ok(profile);
@@ -32,8 +34,10 @@ public class UserProfileController {
 
     @GetMapping
     @Operation(summary = "Get ALL users")
-    @ApiResponse(responseCode = "200", description = "User found")
-    @ApiResponse(responseCode = "404", description = "User not found")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "User found"),
+            @ApiResponse(responseCode = "404", description = "User not found")
+    })
     public ResponseEntity<List<UserProfile>> getAllUserProfiles(@PathVariable Long bankId){
         List<UserProfile> profiles = userProfileService.getAllUserProfiles(bankId);
         if (profiles.isEmpty()){
