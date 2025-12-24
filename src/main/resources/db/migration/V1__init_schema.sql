@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    bank_id BIGINT NOT NULL,
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL
+);
