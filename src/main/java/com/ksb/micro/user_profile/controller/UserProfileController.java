@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +16,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/banks/{bankId}/users")
+@RequiredArgsConstructor
 @Tag(name = "Users", description = "User Management endpoints")
 public class UserProfileController {
 
-    @Autowired
-    private UserProfileService userProfileService;
+    private final UserProfileService userProfileService;
 
     @GetMapping("/{userId}") //by user ID
     @Operation(summary = "Get user by ID")
@@ -28,8 +29,7 @@ public class UserProfileController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     public ResponseEntity<UserProfile> getUserProfile(@PathVariable Long bankId, @PathVariable Long userId){
-        UserProfile profile = userProfileService.getUserProfile(bankId, userId);
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(userProfileService.getUserProfile(bankId, userId));
     }
 
     @GetMapping
@@ -38,34 +38,29 @@ public class UserProfileController {
             @ApiResponse(responseCode = "200", description = "User found"),
             @ApiResponse(responseCode = "404", description = "User not found")
     })
-    public ResponseEntity<List<UserProfile>> getAllUserProfiles(@PathVariable Long bankId){
+    public ResponseEntity<List<UserProfile>> getAllUserProfiles(@PathVariable Long bankId) {
         List<UserProfile> profiles = userProfileService.getAllUserProfiles(bankId);
-        if (profiles.isEmpty()){
-            return ResponseEntity.noContent().build(); //return 204, if list is empty
-        }
-        return ResponseEntity.ok(profiles);//return the list of users for bankID specific
+        return profiles.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(profiles);
     }
 
     @PostMapping
     @Operation(summary = "User created")
     @ApiResponse(responseCode = "201", description = "User created with ID")
-    public ResponseEntity<UserProfile> createUserProfile(@PathVariable Long bankId, @RequestBody UserProfile userProfile){
+    public ResponseEntity<UserProfile> createUserProfile(@PathVariable Long bankId, @RequestBody UserProfile userProfile) {
         userProfile.setBankId(bankId);
-        UserProfile createdProfile = userProfileService.createUserProfile(userProfile);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdProfile);
+        return ResponseEntity.status(HttpStatus.CREATED).body(userProfileService.createUserProfile(userProfile));
     }
 
     @PutMapping("/{userId}")
     @Operation(summary = "User updated")
-    public ResponseEntity<? extends Object> updateUserProfile(@PathVariable Long bankId, @PathVariable Long userId, @RequestBody UserProfile userProfile){
-        UserProfile updateUser = userProfileService.updateUserProfile(bankId,userId,userProfile);
-        return ResponseEntity.ok(updateUser);
+    public ResponseEntity<UserProfile> updateUserProfile(@PathVariable Long bankId, @PathVariable Long userId, @RequestBody UserProfile userProfile) {
+        return ResponseEntity.ok(userProfileService.updateUserProfile(bankId, userId, userProfile));
     }
 
     @DeleteMapping("/{userId}")
     @Operation(summary = "User deleted")
-    public ResponseEntity<UserProfile> deleteUserProfile(@PathVariable Long bankId, @PathVariable Long userId){
-        userProfileService.deleteUserProfile(bankId,userId);
+    public ResponseEntity<Void> deleteUserProfile(@PathVariable Long bankId, @PathVariable Long userId) {
+        userProfileService.deleteUserProfile(bankId, userId);
         return ResponseEntity.noContent().build();
     }
 }

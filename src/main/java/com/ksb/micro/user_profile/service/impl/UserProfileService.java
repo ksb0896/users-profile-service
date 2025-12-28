@@ -3,7 +3,6 @@ package com.ksb.micro.user_profile.service.impl;
 import com.ksb.micro.user_profile.model.UserProfile;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface UserProfileService {
     UserProfile getUserProfile(Long bankId, Long userId); //GET
