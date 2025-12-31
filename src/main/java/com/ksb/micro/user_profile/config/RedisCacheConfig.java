@@ -12,10 +12,6 @@ import java.time.Duration;
 @Configuration
 public class RedisCacheConfig {
 
-    /**
-     * Configures Redis caching to use JSON serialization instead of default Java serialization.
-     */
-
     @Bean
     public RedisCacheConfiguration cacheConfiguration() {
         GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer();
